@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-soft-sage/60;
+  }
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-ivory text-text-primary font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+  ::selection {
+    @apply bg-champagne/50;
+  }
+}
+
+@layer utilities {
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2;
+  }
+}
+
+/* Respecte les préférences d'accessibilité : on coupe les animations
+   décoratives (pas les transitions d'état utiles) pour qui le demande. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-scale-in,
+  .animate-rise-in,
+  .animate-drift,
+  .animate-shimmer {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

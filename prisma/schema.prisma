@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum StaffRole {
+  ADMIN
+  CHECKIN
+}
+
+enum InvitationStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CheckInResult {
+  VALID
+  ALREADY_USED
+  INVALID
+  DISABLED
+}
+
+enum Civility {
+  MR
+  MME
+}
+
+enum PartyType {
+  SINGLE
+  COUPLE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ownedWeddings  Wedding[]      @relation("WeddingOwner")
+  staffOf        WeddingStaff[]
+  sessions       Session[]
+  checkedInvites Invitation[]   @relation("CheckedInBy")
+  checkIns       CheckIn[]      @relation("ScannedBy")
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  userAgent String?  @map("user_agent")
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Wedding {
+  id             String   @id @default(uuid())
+  ownerId        String   @map("owner_id")
+  owner          User     @relation("WeddingOwner", fields: [ownerId], references: [id])
+  brideName      String   @map("bride_name")
+  groomName      String   @map("groom_name")
+  weddingDate    DateTime @map("wedding_date") @db.Date
+  weddingTime    String   @map("wedding_time")
+  venueName      String   @map("venue_name")
+  venueAddress   String   @map("venue_address")
+  welcomeMessage String   @map("welcome_message") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  staff       WeddingStaff[]
+  guests      Guest[]
+  tables      Table[]
+  invitations Invitation[]
+  checkIns    CheckIn[]
+  auditLogs   AuditLog[]
+
+  @@map("weddings")
+}
+
+model Table {
+  id        String   @id @default(uuid())
+  weddingId String   @map("wedding_id")
+  wedding   Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  number    Int
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  guests Guest[]
+
+  @@unique([weddingId, number])
+  @@map("tables")
+}
+
+model WeddingStaff {
+  id        String    @id @default(uuid())
+  weddingId String    @map("wedding_id")
+  wedding   Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      StaffRole
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@unique([weddingId, userId])
+  @@map("wedding_staff")
+}
+
+model Guest {
+  id        String    @id @default(uuid())
+  weddingId String    @map("wedding_id")
+  wedding   Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  civility  Civility?
+  partyType PartyType @default(SINGLE) @map("party_type")
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  phone     String?
+  email     String?
+  tableId   String?   @map("table_id")
+  table     Table?    @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  invitation Invitation?
+
+  @@index([weddingId])
+  @@index([tableId])
+  @@map("guests")
+}
+
+model Invitation {
+  id          String           @id @default(uuid())
+  guestId     String           @unique @map("guest_id")
+  guest       Guest            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  weddingId   String           @map("wedding_id")
+  wedding     Wedding          @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  token       String           @unique
+  status      InvitationStatus @default(ACTIVE)
+  checkedIn   Boolean          @default(false) @map("checked_in")
+  checkedInAt DateTime?        @map("checked_in_at")
+  checkedById String?          @map("checked_in_by")
+  checkedBy   User?            @relation("CheckedInBy", fields: [checkedById], references: [id])
+  viewedAt    DateTime?        @map("viewed_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  checkIns CheckIn[]
+
+  @@index([weddingId])
+  @@index([token])
+  @@map("invitations")
+}
+
+model CheckIn {
+  id           String        @id @default(uuid())
+  invitationId String        @map("invitation_id")
+  invitation   Invitation    @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  guestId      String        @map("guest_id")
+  weddingId    String        @map("wedding_id")
+  wedding      Wedding       @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  scannedAt    DateTime      @default(now()) @map("scanned_at")
+  scannedById  String        @map("scanned_by")
+  scannedBy    User          @relation("ScannedBy", fields: [scannedById], references: [id])
+  result       CheckInResult
+
+  @@index([invitationId])
+  @@index([weddingId, scannedAt])
+  @@map("check_ins")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  weddingId  String?  @map("wedding_id")
+  wedding    Wedding? @relation(fields: [weddingId], references: [id], onDelete: SetNull)
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([weddingId, createdAt])
+  @@map("audit_logs")
+}
