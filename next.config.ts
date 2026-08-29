@@ -10,11 +10,12 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  // Nécessaire pour que les polices auto-hébergées utilisées par le générateur
-  // de PDF (@react-pdf/renderer, lu depuis le disque via fs) soient bien
-  // copiées dans le build `standalone` déployé sur Hostinger.
+  // Nécessaire pour que les polices et l'image de fond auto-hébergées
+  // utilisées par le générateur de PDF (@react-pdf/renderer, lues depuis le
+  // disque via fs) soient bien copiées dans le build `standalone` déployé
+  // sur Hostinger.
   outputFileTracingIncludes: {
-    "/api/invitations/*/pdf": ["./src/assets/fonts/**"],
+    "/api/invitations/*/pdf": ["./src/assets/fonts/**", "./src/assets/images/**"],
   },
 };
 

@@ -33,3 +33,6 @@ logs
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# scaffold parasite non lié au projet
+/mariage-system/

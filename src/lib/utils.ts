@@ -26,3 +26,17 @@ export function formatTimeFr(date: Date | string) {
     minute: "2-digit",
   }).format(d);
 }
+
+/**
+ * Découpage « jour de semaine / jour / mois » pour la mise en avant type
+ * papeterie (le numéro du jour est affiché en plus grand au milieu de la
+ * ligne — ex. « Samedi 3 Octobre »), chaque mot avec une majuscule initiale.
+ */
+export function formatDatePoster(date: Date | string) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const month = capitalize(new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(d));
+  const day = new Intl.DateTimeFormat("fr-FR", { day: "numeric" }).format(d);
+  const weekday = capitalize(new Intl.DateTimeFormat("fr-FR", { weekday: "long" }).format(d));
+  return { month, day, weekday };
+}

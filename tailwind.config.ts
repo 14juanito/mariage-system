@@ -54,6 +54,8 @@ const config: Config = {
       fontFamily: {
         display: ["var(--font-display)", "Georgia", "serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        // Calligraphie pour les prénoms des mariés sur la papeterie noir & or.
+        script: ["var(--font-script)", "cursive"],
       },
       borderRadius: {
         sm: "6px",

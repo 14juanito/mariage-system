@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { Cormorant_Garamond, Inter, Great_Vibes } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -17,6 +17,16 @@ const sans = Inter({
   display: "swap",
 });
 
+// Calligraphie utilisée uniquement pour les prénoms des mariés sur la page
+// publique d'invitation (papeterie noir & or) — next/font l'auto-héberge au
+// build, donc pas de requête réseau à l'exécution (compatible Hostinger).
+const script = Great_Vibes({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-script",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Mariage System — Gestion d'invitations",
   description: "Plateforme de gestion d'invitations de mariage et de check-in QR.",
@@ -30,7 +40,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`${display.variable} ${sans.variable}`}>
+    <html lang="fr" className={`${display.variable} ${sans.variable} ${script.variable}`}>
       <body>
         {children}
         <Toaster />
