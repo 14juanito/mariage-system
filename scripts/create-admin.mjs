@@ -12,7 +12,11 @@
  * journaux de déploiement.
  *
  * Usage :
- *   DATABASE_URL="postgresql://..." node scripts/create-admin.mjs
+ *   node scripts/create-admin.mjs
+ *
+ * La chaîne de connexion est demandée si `DATABASE_URL` n'est pas définie,
+ * ce qui évite de la faire passer par la ligne de commande — donc par
+ * l'historique du shell, qui la conserverait en clair.
  *
  * Relancer le script sur un e-mail existant met à jour son mot de passe.
  */
@@ -39,18 +43,18 @@ async function askHidden(rl, question) {
   }
 }
 
-async function main() {
-  if (!process.env.DATABASE_URL?.trim()) {
-    console.error(
-      "\n❌ DATABASE_URL manquante.\n\n" +
-        "   Récupérez la chaîne de connexion de votre base Neon\n" +
-        "   (Vercel → Storage → votre base → Quickstart → DATABASE_URL)\n" +
-        "   puis relancez :\n\n" +
-        '     DATABASE_URL="postgresql://..." node scripts/create-admin.mjs\n',
-    );
-    process.exit(1);
+/** Décrit la base visée sans jamais révéler le mot de passe de connexion. */
+function describeTarget(url) {
+  try {
+    const u = new URL(url);
+    const db = u.pathname.replace(/^\//, "") || "(défaut)";
+    return `${db} sur ${u.hostname}${u.port ? ":" + u.port : ""} (utilisateur ${u.username || "?"})`;
+  } catch {
+    return "chaîne de connexion illisible";
   }
+}
 
+async function main() {
   // La saisie masquée du mot de passe suppose un vrai terminal. Sans ce
   // garde-fou, un lancement en pipe ou via CI s'interrompt sans rien dire :
   // readline attend une entrée qui n'arrivera jamais, et Node sort en silence.
@@ -63,11 +67,55 @@ async function main() {
   }
 
   const rl = createInterface({ input: stdin, output: stdout, terminal: true });
-  const prisma = new PrismaClient();
+
+  // `@prisma/client` charge le `.env` du projet dès son import : sans le
+  // signaler, un lancement depuis le dossier de développement viserait la base
+  // locale en silence, et le compte serait créé au mauvais endroit.
+  let databaseUrl = process.env.DATABASE_URL?.trim();
+  if (databaseUrl) {
+    console.log(`\nBase détectée dans l'environnement : ${describeTarget(databaseUrl)}`);
+    const keep = (await rl.question("Créer le compte sur CETTE base ? [o/N] ")).trim().toLowerCase();
+    if (keep !== "o" && keep !== "oui") databaseUrl = undefined;
+  }
+
+  if (!databaseUrl) {
+    console.log(
+      "\nCollez la chaîne de connexion de la base visée.\n" +
+        "Vercel → Storage → votre base Neon → Quickstart → DATABASE_URL.\n" +
+        "Elle ne s'affichera pas pendant la saisie.\n",
+    );
+    databaseUrl = (await askHidden(rl, "DATABASE_URL : ")).trim();
+    if (!/^postgres(ql)?:\/\//.test(databaseUrl)) {
+      console.error("\n❌ Cela ne ressemble pas à une chaîne PostgreSQL (attendu : postgresql://…).\n");
+      rl.close();
+      process.exit(1);
+    }
+    console.log(`\nCible : ${describeTarget(databaseUrl)}\n`);
+  }
+
+  const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
 
   try {
+    // Afficher l'existant avant de demander quoi que ce soit : c'est le seul
+    // moyen, sans accès au tableau de bord, de savoir si un compte doit être
+    // remplacé plutôt que créé.
+    const existing = await prisma.user.findMany({
+      select: { email: true, name: true, staffOf: { select: { role: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existing.length === 0) {
+      console.log("\nAucun compte n'existe pour l'instant.\n");
+    } else {
+      console.log("\nComptes déjà présents :");
+      for (const u of existing) {
+        const roles = u.staffOf.map((s) => s.role).join(", ") || "aucun rôle";
+        console.log(`  · ${u.email} (${u.name}) — ${roles}`);
+      }
+      console.log("");
+    }
+
     const email = (await rl.question("E-mail de l'administrateur : ")).trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@:/]+@[^\s@:/]+\.[^\s@:/]+$/.test(email)) {
       throw new Error("Adresse e-mail invalide.");
     }
 
