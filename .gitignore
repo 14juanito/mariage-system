@@ -36,3 +36,6 @@ logs
 
 # scaffold parasite non lié au projet
 /mariage-system/
+
+# Vercel
+.vercel
