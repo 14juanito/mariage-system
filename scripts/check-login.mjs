@@ -66,11 +66,18 @@ async function main() {
   let databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
     console.log(`\nBase détectée dans l'environnement : ${describeTarget(databaseUrl)}`);
-    if (isLocal(databaseUrl)) {
-      console.log("⚠️  Base LOCALE : ce n'est pas celle du site en ligne.");
-    }
-    const keep = (await rl.question("Inspecter CETTE base ? [o/N] ")).trim().toLowerCase();
-    if (keep !== "o" && keep !== "oui") databaseUrl = undefined;
+    // Même garde-fou que create-admin : inspecter la base locale par erreur
+    // donne un diagnostic rassurant sur la mauvaise base.
+    const answer = isLocal(databaseUrl)
+      ? await rl.question(
+          "⚠️  Base LOCALE : ce n'est pas celle du site en ligne.\n" +
+            "    Tapez le mot « local » pour l'inspecter quand même, ou Entrée pour en choisir une autre : ",
+        )
+      : await rl.question("Inspecter CETTE base ? [o/N] ");
+    const confirmed = isLocal(databaseUrl)
+      ? answer.trim().toLowerCase() === "local"
+      : ["o", "oui"].includes(answer.trim().toLowerCase());
+    if (!confirmed) databaseUrl = undefined;
   }
 
   if (!databaseUrl) {

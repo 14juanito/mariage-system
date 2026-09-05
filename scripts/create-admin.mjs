@@ -84,14 +84,19 @@ async function main() {
   let databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
     console.log(`\nBase détectée dans l'environnement : ${describeTarget(databaseUrl)}`);
-    if (isLocal(databaseUrl)) {
-      console.log(
-        "⚠️  C'est une base LOCALE, sur cette machine. Ce n'est pas la base du\n" +
-          "    site en ligne : un compte créé ici ne permettra pas de s'y connecter.",
-      );
-    }
-    const keep = (await rl.question("Créer le compte sur CETTE base ? [o/N] ")).trim().toLowerCase();
-    if (keep !== "o" && keep !== "oui") databaseUrl = undefined;
+    // Un « o » distrait a déjà envoyé deux comptes sur la base de
+    // développement. Pour une base locale, on exige donc un mot qui ne peut
+    // pas être tapé par réflexe.
+    const answer = isLocal(databaseUrl)
+      ? await rl.question(
+          "⚠️  Base LOCALE : un compte créé ici ne permet PAS de se connecter au site en ligne.\n" +
+            "    Tapez le mot « local » pour l'utiliser quand même, ou Entrée pour en choisir une autre : ",
+        )
+      : await rl.question("Créer le compte sur CETTE base ? [o/N] ");
+    const confirmed = isLocal(databaseUrl)
+      ? answer.trim().toLowerCase() === "local"
+      : ["o", "oui"].includes(answer.trim().toLowerCase());
+    if (!confirmed) databaseUrl = undefined;
   }
 
   if (!databaseUrl) {
