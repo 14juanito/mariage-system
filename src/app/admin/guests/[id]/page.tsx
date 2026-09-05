@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { GuestDetailActions } from "@/components/shared/guest-detail-actions";
 import { formatTimeFr } from "@/lib/utils";
 import { guestDisplayName } from "@/lib/guest";
+import { getAppUrl } from "@/lib/app-url";
 
 export default async function GuestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,7 +23,7 @@ export default async function GuestDetailPage({ params }: { params: Promise<{ id
   if (!guest) notFound();
 
   const qrSvg = guest.invitation ? await generateQrSvg(guest.invitation.token) : null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = getAppUrl();
   const invitationUrl = guest.invitation ? `${appUrl}/invitation/${guest.invitation.token}` : null;
 
   return (

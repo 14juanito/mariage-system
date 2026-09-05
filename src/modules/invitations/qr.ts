@@ -1,9 +1,9 @@
 import "server-only";
 import QRCode from "qrcode";
+import { getAppUrl } from "@/lib/app-url";
 
 function invitationUrl(token: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/invitation/${token}`;
+  return `${getAppUrl()}/invitation/${token}`;
 }
 
 /** SVG (léger, net à toute résolution) pour l'affichage web. */
