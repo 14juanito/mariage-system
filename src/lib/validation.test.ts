@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { guestSchema, loginSchema, resetCheckInSchema, tableSchema } from "./validation";
+import { createStaffSchema, guestSchema, loginSchema, resetCheckInSchema, tableSchema } from "./validation";
 
 describe("guestSchema", () => {
   it("accepte un invité seul minimal (prénom + nom uniquement)", () => {
@@ -51,6 +51,19 @@ describe("loginSchema", () => {
     const parsed = loginSchema.safeParse({ email: "  Lydie.Jackson@Gmail.COM ", password: "x" });
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.email).toBe("lydie.jackson@gmail.com");
+  });
+});
+
+describe("createStaffSchema", () => {
+  it("normalise la casse de l'adresse, comme à la connexion", () => {
+    const parsed = createStaffSchema.safeParse({
+      name: "Équipe Accueil",
+      email: "Accueil@Gmail.COM",
+      password: "motdepasse",
+      role: "CHECKIN",
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.email).toBe("accueil@gmail.com");
   });
 });
 

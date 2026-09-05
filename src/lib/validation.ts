@@ -87,7 +87,10 @@ export const resetCheckInSchema = z.object({
 
 export const createStaffSchema = z.object({
   name: z.string().trim().min(1, "Requis").max(120),
-  email: z.string().trim().email("E-mail invalide"),
+  // Même normalisation que `loginSchema` : un compte enregistré avec une
+  // majuscule serait introuvable à la connexion, donc inutilisable, sans
+  // aucun message permettant de le comprendre.
+  email: z.string().trim().toLowerCase().email("E-mail invalide"),
   password: z.string().min(8, "8 caractères minimum"),
   role: z.enum(["ADMIN", "CHECKIN"]),
 });
