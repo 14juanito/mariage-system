@@ -46,6 +46,12 @@ describe("loginSchema", () => {
   it("rejette un mot de passe vide", () => {
     expect(loginSchema.safeParse({ email: "a@b.com", password: "" }).success).toBe(false);
   });
+
+  it("normalise la casse et les espaces de l'adresse", () => {
+    const parsed = loginSchema.safeParse({ email: "  Lydie.Jackson@Gmail.COM ", password: "x" });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.email).toBe("lydie.jackson@gmail.com");
+  });
 });
 
 describe("resetCheckInSchema", () => {

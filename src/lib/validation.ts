@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Adresse e-mail invalide"),
+  // La casse est normalisée ici, et non à l'appel : la recherche du compte se
+  // fait par `findUnique` sur une colonne unique, donc sensible à la casse en
+  // PostgreSQL. Sans cela, un compte enregistré en minuscules devient
+  // introuvable dès que le clavier d'un téléphone met la première lettre en
+  // majuscule — et l'échec est indiscernable d'un mauvais mot de passe.
+  email: z.string().trim().toLowerCase().email("Adresse e-mail invalide"),
   password: z.string().min(1, "Mot de passe requis"),
 });
 
