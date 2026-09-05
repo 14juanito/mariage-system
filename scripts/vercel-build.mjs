@@ -16,21 +16,52 @@ import { spawnSync } from "node:child_process";
 
 const env = { ...process.env };
 
-if (!env.DIRECT_DATABASE_URL) {
-  const fallback = env.DATABASE_URL_UNPOOLED ?? env.POSTGRES_URL_NON_POOLING;
-  if (fallback) {
+/** Une variable vide vaut une variable absente (Vercel peut fournir ""). */
+const value = (name) => {
+  const v = env[name];
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+};
+
+const pooled = value("DATABASE_URL") ?? value("POSTGRES_PRISMA_URL");
+// Lu avant toute réécriture d'`env` : sert à savoir si la valeur retenue vient
+// du nom attendu ou d'un repli sur un alias Neon.
+const explicitDirect = value("DIRECT_DATABASE_URL");
+const direct = explicitDirect ?? value("DATABASE_URL_UNPOOLED") ?? value("POSTGRES_URL_NON_POOLING");
+
+// Sans URL de base, inutile d'aller plus loin : Prisma échouerait de toute
+// façon, mais avec un message obscur (« resolved to an empty string ») qui
+// n'indique pas quoi corriger.
+if (!pooled && !direct) {
+  console.error(
+    "\n[vercel-build] ❌ Aucune URL de base de données dans l'environnement.\n" +
+      "   Attendu : DATABASE_URL (et idéalement la connexion non poolée).\n" +
+      "   Sur Vercel : onglet Storage du projet → Connect Store → base Neon,\n" +
+      "   puis relancez le déploiement (Deployments → ⋯ → Redeploy).\n",
+  );
+  process.exit(1);
+}
+
+if (!pooled) {
+  console.error("\n[vercel-build] ❌ DATABASE_URL manquante (seule la connexion directe est définie).\n");
+  process.exit(1);
+}
+
+env.DATABASE_URL = pooled;
+
+if (direct) {
+  env.DIRECT_DATABASE_URL = direct;
+  if (!explicitDirect) {
     console.log("[vercel-build] DIRECT_DATABASE_URL déduite de la connexion non poolée de Neon.");
-    env.DIRECT_DATABASE_URL = fallback;
-  } else if (env.DATABASE_URL) {
-    // Dernier recours : migrer via l'URL poolée. Cela fonctionne sur de
-    // petites migrations mais peut échouer sur des verrous longs — d'où
-    // l'avertissement explicite plutôt qu'un repli silencieux.
-    console.warn(
-      "[vercel-build] ⚠️  Aucune connexion directe trouvée ; migration via l'URL poolée. " +
-        "Définissez DIRECT_DATABASE_URL (URL Neon sans « -pooler ») pour fiabiliser les migrations.",
-    );
-    env.DIRECT_DATABASE_URL = env.DATABASE_URL;
   }
+} else {
+  // Dernier recours : migrer via l'URL poolée. Cela fonctionne sur de petites
+  // migrations mais peut échouer sur des verrous longs — d'où l'avertissement
+  // explicite plutôt qu'un repli silencieux.
+  console.warn(
+    "[vercel-build] ⚠️  Aucune connexion directe trouvée ; migration via l'URL poolée. " +
+      "Définissez DIRECT_DATABASE_URL (URL Neon sans « -pooler ») pour fiabiliser les migrations.",
+  );
+  env.DIRECT_DATABASE_URL = pooled;
 }
 
 function run(command, args) {
