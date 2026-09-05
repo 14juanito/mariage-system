@@ -43,6 +43,16 @@ async function askHidden(rl, question) {
   }
 }
 
+/** Une base servie par cette machine ne peut pas être celle du site déployé. */
+function isLocal(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local");
+  } catch {
+    return false;
+  }
+}
+
 /** Décrit la base visée sans jamais révéler le mot de passe de connexion. */
 function describeTarget(url) {
   try {
@@ -74,6 +84,12 @@ async function main() {
   let databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
     console.log(`\nBase détectée dans l'environnement : ${describeTarget(databaseUrl)}`);
+    if (isLocal(databaseUrl)) {
+      console.log(
+        "⚠️  C'est une base LOCALE, sur cette machine. Ce n'est pas la base du\n" +
+          "    site en ligne : un compte créé ici ne permettra pas de s'y connecter.",
+      );
+    }
     const keep = (await rl.question("Créer le compte sur CETTE base ? [o/N] ")).trim().toLowerCase();
     if (keep !== "o" && keep !== "oui") databaseUrl = undefined;
   }
