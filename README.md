@@ -31,6 +31,12 @@ npm run prisma:seed      # crée un compte admin, un compte accueil, et un maria
 npm run dev               # http://localhost:3000
 ```
 
+Si vous n'avez pas déjà un PostgreSQL sous la main, [`scripts/dev-db.sh`](scripts/dev-db.sh) en démarre un jetable (idempotent, données dans `/tmp`, **développement uniquement**) :
+
+```bash
+./scripts/dev-db.sh      # affiche l'URL de connexion à mettre dans .env
+```
+
 Comptes créés par le seed (à changer immédiatement en production) :
 
 | Rôle | E-mail | Mot de passe |
@@ -67,7 +73,7 @@ SET checked_in = true, checked_in_at = NOW(), checked_in_by = ?
 WHERE token = ? AND status = 'ACTIVE' AND checked_in = false;
 ```
 
-InnoDB verrouille la ligne pendant l'`UPDATE` : si deux scans arrivent au même instant, un seul peut matcher `checked_in = false` et gagner la course. Voir [`src/modules/check-in/service.ts`](src/modules/check-in/service.ts).
+PostgreSQL verrouille la ligne pendant l'`UPDATE` : si deux scans arrivent au même instant, le second attend la fin du premier, puis ré-évalue sa clause `WHERE` sur la version à jour — il ne matche donc plus `checked_in = false` et perd la course. Un seul scan peut gagner. Voir [`src/modules/check-in/service.ts`](src/modules/check-in/service.ts) et `npm run test:concurrency`.
 
 ## Build & exécution
 
@@ -94,7 +100,9 @@ npm run test:e2e            # parcours complet via navigateur headless (nécessi
 
 ### 1. Créer la base Neon
 
-Depuis le dashboard Vercel : **Storage → Create Database → Neon**. L'intégration renseigne automatiquement `DATABASE_URL` et `DIRECT_DATABASE_URL` (ainsi que d'autres variables `POSTGRES_*` non utilisées ici) dans le projet.
+Depuis le dashboard Vercel : **Storage → Create Database → Neon**. L'intégration renseigne automatiquement `DATABASE_URL` (connexion poolée) et la connexion non poolée, dont le nom exact varie selon la version de l'intégration (`DATABASE_URL_UNPOOLED` ou `POSTGRES_URL_NON_POOLING`).
+
+Elle ne crée **pas** de variable nommée `DIRECT_DATABASE_URL` : le script de build la déduit automatiquement (voir étape 2). Vous pouvez aussi la définir explicitement.
 
 Si vous créez la base directement sur [neon.tech](https://neon.tech) plutôt que via l'intégration, récupérez les deux chaînes de connexion dans **Connection Details** : celle avec `-pooler` → `DATABASE_URL`, celle sans → `DIRECT_DATABASE_URL`.
 
@@ -106,20 +114,18 @@ npx vercel        # déploiement de prévisualisation
 npx vercel --prod # déploiement en production
 ```
 
-Vercel détecte Next.js automatiquement. Le script `vercel-build` (dans `package.json`) prend le pas sur `build` et enchaîne :
+Vercel détecte Next.js automatiquement et utilise le script `vercel-build` (qui prend le pas sur `build`). Il exécute [`scripts/vercel-build.mjs`](scripts/vercel-build.mjs), qui enchaîne `prisma generate` → `prisma migrate deploy` → `next build`.
 
-```
-prisma generate && prisma migrate deploy && next build
-```
-
-`prisma generate` est indispensable car Vercel met `node_modules` en cache : sans lui, le client Prisma généré peut être périmé. `prisma migrate deploy` applique les migrations en attente à chaque déploiement — si une migration échoue, le déploiement échoue **avant** que du code ne tourne contre un schéma obsolète.
+- `prisma generate` est indispensable car Vercel met `node_modules` en cache : sans lui, le client Prisma généré peut être périmé.
+- `prisma migrate deploy` applique les migrations en attente à chaque déploiement — si une migration échoue, le déploiement échoue **avant** que du code ne tourne contre un schéma obsolète.
+- Le script **déduit automatiquement `DIRECT_DATABASE_URL`** de `DATABASE_URL_UNPOOLED` ou `POSTGRES_URL_NON_POOLING` si elle n'est pas définie. C'est nécessaire parce que l'intégration Neon de Vercel ne crée pas de variable portant ce nom : sans ce repli, le déploiement échouerait sur « Environment variable not found » alors que la base est bien provisionnée.
 
 ### 3. Variables d'environnement (Settings → Environment Variables)
 
 | Variable | Valeur |
 |---|---|
 | `DATABASE_URL` | fournie par Neon (URL **avec** `-pooler`) |
-| `DIRECT_DATABASE_URL` | fournie par Neon (URL **sans** `-pooler`) |
+| `DIRECT_DATABASE_URL` | *optionnelle* — déduite automatiquement de la connexion non poolée de Neon si absente |
 | `SESSION_SECRET` | `openssl rand -base64 48` — **différent** de celui du dev |
 | `NEXT_PUBLIC_APP_URL` | l'URL réelle du site (`https://…`) |
 
