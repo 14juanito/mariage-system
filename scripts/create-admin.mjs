@@ -43,6 +43,14 @@ async function askHidden(rl, question) {
   }
 }
 
+/** Première ligne utile d'une erreur : Prisma préfixe ses messages de sauts
+ * de ligne, ce qui affichait un message vide et masquait la cause. */
+function firstMeaningfulLine(error) {
+  const raw = error instanceof Error ? error.message : String(error);
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  return lines.slice(0, 3).join("\n   ") || "erreur sans message";
+}
+
 /** Une base servie par cette machine ne peut pas être celle du site déployé. */
 function isLocal(url) {
   try {
@@ -186,7 +194,7 @@ async function main() {
     console.log(`\n✅ Compte administrateur prêt : ${email}`);
     console.log("   Connectez-vous sur /login, puis complétez les informations du mariage.\n");
   } catch (error) {
-    console.error(`\n❌ ${error instanceof Error ? error.message : error}\n`);
+    console.error(`\n❌ ${firstMeaningfulLine(error)}\n`);
     process.exitCode = 1;
   } finally {
     rl.close();
