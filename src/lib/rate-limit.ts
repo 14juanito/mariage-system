@@ -1,10 +1,21 @@
 /**
- * Rate limiting en mémoire (token bucket) — suffisant pour un déploiement
- * mono-instance sur hébergement mutualisé. Pas de dépendance externe (Redis)
- * requise, ce qui reste compatible avec l'offre Hostinger Premium.
+ * Rate limiting en mémoire (token bucket), sans dépendance externe.
  *
- * Point d'évolution documenté : si l'app tourne un jour en plusieurs instances,
- * remplacer ce module par un store partagé (ex. Redis) derrière la même API.
+ * ⚠️ Portée réelle sur Vercel (serverless) : le compteur vit dans la mémoire
+ * d'une instance de fonction. Plusieurs instances tournant en parallèle ont
+ * chacune leur propre compteur, et une instance recyclée repart à zéro. La
+ * limite effective est donc « N fois la limite configurée » plutôt qu'une
+ * limite globale stricte.
+ *
+ * C'est acceptable ici parce que ce module n'est pas ce qui garantit la
+ * sécurité : il ne fait que freiner le bruit (bruteforce de login, scans
+ * répétés). Les deux garanties fortes sont ailleurs et restent intactes :
+ *   - le hash bcrypt + les sessions en base pour l'authentification ;
+ *   - l'UPDATE atomique conditionnel pour la règle « une invitation = une
+ *     entrée » (voir modules/check-in/service.ts).
+ *
+ * Pour une limite globale stricte, remplacer ce store par un store partagé
+ * (Upstash Redis, ou une table Postgres) derrière la même API publique.
  */
 
 type Bucket = { tokens: number; lastRefill: number };

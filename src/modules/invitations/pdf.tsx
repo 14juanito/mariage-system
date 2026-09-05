@@ -14,6 +14,7 @@ import {
   Path,
   Circle,
   Ellipse,
+  Rect,
 } from "@react-pdf/renderer";
 import { generateQrPngBuffer } from "./qr";
 import { formatDatePoster } from "@/lib/utils";
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 58,
+    marginTop: 84,
     marginBottom: 4,
   },
   brideGroomName: {
@@ -215,60 +216,78 @@ const styles = StyleSheet.create({
   },
   ringsWrap: {
     alignItems: "center",
-    marginTop: "auto",
-    marginBottom: 8,
+    marginTop: 22,
+    marginBottom: 4,
+  },
+  dressCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+  },
+  dressCodeIcon: {
+    marginRight: 8,
+  },
+  dressCodeText: {
+    fontFamily: "Cormorant Garamond",
+    fontWeight: 600,
+    fontSize: 12.5,
+    letterSpacing: 1,
+    color: COLORS.gold,
+    textTransform: "uppercase",
+  },
+  // Page 2 — dédiée au QR code, tout centré (horizontal + vertical).
+  qrPage: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   qrCard: {
     position: "relative",
-    padding: 12,
+    padding: 22,
     backgroundColor: COLORS.charcoal,
     borderWidth: 0.75,
     borderColor: COLORS.gold,
-    marginBottom: 9,
+    marginBottom: 16,
   },
   qrCorner: {
     position: "absolute",
-    width: 14,
-    height: 14,
+    width: 22,
+    height: 22,
     borderColor: COLORS.goldLight,
   },
   qrImage: {
-    width: 108,
-    height: 108,
+    width: 210,
+    height: 210,
   },
   qrHint: {
     fontFamily: "Cormorant Garamond",
-    fontSize: 8,
+    fontSize: 11,
     color: COLORS.ivoryDim,
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   qrFallbackCode: {
     fontFamily: "Inter",
     fontWeight: 600,
-    fontSize: 8.5,
-    letterSpacing: 2,
+    fontSize: 11,
+    letterSpacing: 3,
     color: COLORS.gold,
+    marginBottom: 26,
   },
   footerRule: {
-    position: "absolute",
-    bottom: 44,
-    left: "36%",
-    right: "36%",
+    width: 90,
     height: 0.6,
     backgroundColor: COLORS.goldDeep,
+    marginBottom: 12,
   },
   footer: {
-    position: "absolute",
-    bottom: 28,
-    left: 0,
-    right: 0,
     textAlign: "center",
     fontFamily: "Cormorant Garamond",
     fontWeight: 600,
-    fontSize: 7.5,
+    fontSize: 9,
     color: COLORS.gold,
-    letterSpacing: 2.5,
+    letterSpacing: 3,
   },
 });
 
@@ -308,6 +327,17 @@ function RingsOrnament() {
 
       <Path d="M78 12 L79.4 15.6 L83 17 L79.4 18.4 L78 22 L76.6 18.4 L73 17 L76.6 15.6 Z" fill={COLORS.goldLight} />
       <Path d="M12 40 L12.9 42.2 L15 43 L12.9 43.8 L12 46 L11.1 43.8 L9 43 L11.1 42.2 Z" fill={COLORS.goldLight} />
+    </Svg>
+  );
+}
+
+/** Petit nœud papillon doré — pictogramme de dress code (tenue chic). */
+function BowTieIcon() {
+  return (
+    <Svg width={20} height={13} viewBox="0 0 20 13">
+      <Path d="M1 1.5 L9 6.5 L1 11.5 Z" fill={COLORS.gold} />
+      <Path d="M19 1.5 L11 6.5 L19 11.5 Z" fill={COLORS.gold} />
+      <Rect x={8.3} y={4.3} width={3.4} height={4.4} rx={0.6} fill={COLORS.gold} />
     </Svg>
   );
 }
@@ -424,31 +454,44 @@ function InvitationDocument({
             ) : null}
           </View>
 
+          <View style={styles.dressCodeRow}>
+            <View style={styles.dressCodeIcon}>
+              <BowTieIcon />
+            </View>
+            <Text style={styles.dressCodeText}>Dress code : Noir, Chic et élégant</Text>
+          </View>
+
           <View style={styles.ringsWrap}>
             <RingsOrnament />
           </View>
-
-          <View style={{ alignItems: "center" }}>
-            <View style={styles.qrCard}>
-              <QrCorner top={-1} left={-1} />
-              <QrCorner top={-1} right={-1} />
-              <QrCorner bottom={-1} left={-1} />
-              <QrCorner bottom={-1} right={-1} />
-              {/* @react-pdf/renderer <Image> n'est pas une balise <img> HTML — pas d'attribut alt applicable. */}
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src={qrPngBase64} style={styles.qrImage} />
-            </View>
-            <Text style={styles.qrHint}>Présentez ce QR code à l&apos;accueil</Text>
-            <Text style={styles.qrFallbackCode}>{fallbackCode}</Text>
-          </View>
         </View>
+      </Page>
 
-        {/* `fixed` (même raison que le fond) : évite que ces éléments en
-            position absolue ne soient mal comptés dans la pagination. */}
-        <View style={styles.footerRule} fixed />
-        <Text style={styles.footer} fixed>
-          UNE INVITATION · UNE ENTRÉE
-        </Text>
+      {/* Page 2 — dédiée au QR code : tout est centré (horizontalement et
+          verticalement), comme demandé, avec le rappel « une invitation, une
+          entrée » et le code de secours juste en dessous. */}
+      <Page size="A4" style={styles.page}>
+        {/* `fixed` répète le fond identique sur chaque page du document. */}
+        {/* @react-pdf/renderer <Image> n'est pas une balise <img> HTML — pas d'attribut alt applicable. */}
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image src={backgroundImage} style={styles.bgImage} fixed />
+
+        <View style={styles.qrPage}>
+          <View style={styles.qrCard}>
+            <QrCorner top={-1} left={-1} />
+            <QrCorner top={-1} right={-1} />
+            <QrCorner bottom={-1} left={-1} />
+            <QrCorner bottom={-1} right={-1} />
+            {/* @react-pdf/renderer <Image> n'est pas une balise <img> HTML — pas d'attribut alt applicable. */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={qrPngBase64} style={styles.qrImage} />
+          </View>
+          <Text style={styles.qrHint}>Présentez ce QR code à l&apos;accueil</Text>
+          <Text style={styles.qrFallbackCode}>{fallbackCode}</Text>
+
+          <View style={styles.footerRule} />
+          <Text style={styles.footer}>UNE INVITATION · UNE ENTRÉE</Text>
+        </View>
       </Page>
     </Document>
   );

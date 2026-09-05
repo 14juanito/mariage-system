@@ -3,8 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // URL « poolée » (PgBouncer côté Neon) : utilisée par l'app en serverless,
+  // où chaque invocation ouvre potentiellement sa propre connexion.
+  url       = env("DATABASE_URL")
+  // Connexion directe, non poolée : requise par `prisma migrate`, qui a
+  // besoin de sessions longues et de verrous consultatifs (impossible via
+  // PgBouncer en mode transaction). En local, les deux pointent au même endroit.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 enum StaffRole {

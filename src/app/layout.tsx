@@ -19,7 +19,7 @@ const sans = Inter({
 
 // Calligraphie utilisée uniquement pour les prénoms des mariés sur la page
 // publique d'invitation (papeterie noir & or) — next/font l'auto-héberge au
-// build, donc pas de requête réseau à l'exécution (compatible Hostinger).
+// build, donc pas de requête réseau à l'exécution.
 const script = Great_Vibes({
   subsets: ["latin"],
   weight: "400",

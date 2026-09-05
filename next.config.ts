@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -10,10 +9,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  // Nécessaire pour que les polices et l'image de fond auto-hébergées
-  // utilisées par le générateur de PDF (@react-pdf/renderer, lues depuis le
-  // disque via fs) soient bien copiées dans le build `standalone` déployé
-  // sur Hostinger.
+  // Le générateur de PDF (@react-pdf/renderer) lit ses polices et l'image de
+  // fond depuis le disque via `fs`. Le tracing de Next ne détecte pas ces
+  // lectures dynamiques : sans cette liste, les fichiers sont absents du
+  // bundle de la fonction serverless sur Vercel et la génération échoue.
   outputFileTracingIncludes: {
     "/api/invitations/*/pdf": ["./src/assets/fonts/**", "./src/assets/images/**"],
   },
