@@ -64,10 +64,34 @@ function firstMeaningfulLine(error) {
 function normalizeConnection(url) {
   try {
     const u = new URL(url);
+
+    // Neon expose deux hôtes pour la même base : « …-pooler… » passe par
+    // PgBouncer, dimensionné pour des applications web à fortes rafales, et
+    // l'hôte sans suffixe ouvre une connexion directe. Un script à usage
+    // unique n'a rien à gagner au pooler, et y saturait le pool interne de
+    // Prisma (« Timed out fetching a new connection from the connection
+    // pool »). On bascule donc sur la connexion directe.
+    if (u.hostname.includes("-pooler.") && u.hostname.endsWith(".neon.tech")) {
+      u.hostname = u.hostname.replace("-pooler.", ".");
+      console.log("ℹ️  Connexion directe utilisée à la place du pooler Neon.");
+    }
+
+    // `channel_binding` est un mécanisme d'authentification de libpq que le
+    // pilote de Prisma n'implémente pas ; l'exiger fait échouer la connexion.
+    // Le chiffrement reste assuré par `sslmode`.
+    u.searchParams.delete("channel_binding");
+
     // Le TLS n'est imposé qu'aux hôtes distants : un PostgreSQL de
     // développement ne l'active pas, et l'exiger casserait le cas local.
     if (!isLocal(url) && !u.searchParams.has("sslmode")) u.searchParams.set("sslmode", "require");
-    if (!u.searchParams.has("connect_timeout")) u.searchParams.set("connect_timeout", "15");
+    if (!u.searchParams.has("connect_timeout")) u.searchParams.set("connect_timeout", "20");
+
+    // Un script séquentiel n'ouvre qu'une requête à la fois : neuf connexions
+    // ne servent à rien, et leur établissement simultané sur une base en
+    // train de sortir de veille est précisément ce qui expirait.
+    if (!u.searchParams.has("connection_limit")) u.searchParams.set("connection_limit", "1");
+    if (!u.searchParams.has("pool_timeout")) u.searchParams.set("pool_timeout", "30");
+
     return u.toString();
   } catch {
     return url;
