@@ -51,6 +51,29 @@ function firstMeaningfulLine(error) {
   return lines.slice(0, 3).join("\n   ") || "erreur sans message";
 }
 
+/**
+ * Complète la chaîne de connexion des paramètres qu'une base Neon exige.
+ *
+ * En offre gratuite, la base se met en veille après quelques minutes et met
+ * plusieurs secondes à redémarrer. Le délai de connexion par défaut de Prisma
+ * (5 s) expire avant, et l'erreur rendue — « Can't reach database server » —
+ * désigne à tort une panne réseau. Vercel contourne cela avec un
+ * `connect_timeout=15` dans sa variable POSTGRES_PRISMA_URL ; on fait de même
+ * pour toute chaîne saisie à la main.
+ */
+function normalizeConnection(url) {
+  try {
+    const u = new URL(url);
+    // Le TLS n'est imposé qu'aux hôtes distants : un PostgreSQL de
+    // développement ne l'active pas, et l'exiger casserait le cas local.
+    if (!isLocal(url) && !u.searchParams.has("sslmode")) u.searchParams.set("sslmode", "require");
+    if (!u.searchParams.has("connect_timeout")) u.searchParams.set("connect_timeout", "15");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** Une base servie par cette machine ne peut pas être celle du site déployé. */
 function isLocal(url) {
   try {
@@ -122,7 +145,7 @@ async function main() {
     console.log(`\nCible : ${describeTarget(databaseUrl)}\n`);
   }
 
-  const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: normalizeConnection(databaseUrl) } } });
 
   try {
     // Afficher l'existant avant de demander quoi que ce soit : c'est le seul
